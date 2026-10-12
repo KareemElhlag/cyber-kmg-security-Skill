@@ -43,6 +43,25 @@ Use OWASP MASVS/MASTG for mobile-specific review:
 - Deep links validate authentication, tenant, object existence, and permission after app restore.
 - API errors do not reveal secrets, stack traces, SQL, internal ids, or authorization hints.
 - Release builds disable debug flags, test endpoints, permissive network config, and verbose logging.
+- **Persistent session on a shared/handoff device**: if the app keeps the user logged in indefinitely, confirm
+  there is a deliberate re-auth trigger (idle timeout, app-background timeout, or explicit "sign out of all
+  devices") — an ERP field app with no re-auth path on a shared company device/tablet is a real access-control
+  gap, not a convenience feature to assume away.
+- **Android `allowBackup`**: confirm the manifest does not leave `android:allowBackup="true"` on a build that
+  stores tokens/session data outside the platform keystore — the default backup mechanism can export app data
+  (including anything in SharedPreferences or an unencrypted local database) to Google/adb backup, bypassing
+  secure-storage protections entirely. Require `allowBackup="false"` or a verified custom `BackupAgent` that
+  explicitly excludes secure-storage-backed files.
+- **Keychain/Keystore-vs-restore conflicts**: on iOS, Keychain items can survive an app *delete + reinstall*
+  (depending on the item's accessibility class) while the rest of the app's local state is wiped, which can hand
+  a freshly-installed app a stale token or session tied to data that no longer exists. Verify the accessibility
+  class chosen for `flutter_secure_storage`/Keychain-backed items is deliberate (e.g.
+  `first_unlock_this_device` or equivalent) and that app startup validates a restored token against the server
+  rather than trusting its mere presence.
+- **Offline-queue clear-on-logout is a security decision, not just a UX one**: see the durability-vs-logout
+  tension in `flutter-architect-review`'s architecture reference — an unconditional wipe silently discards
+  unsynced business data, and an unconditional keep-forever risks leaking one account's queued data into another
+  account's session on a shared device if the queue is not strictly keyed by account id.
 
 ## Docker And Runtime Coverage
 

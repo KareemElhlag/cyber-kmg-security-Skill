@@ -18,10 +18,28 @@ Collect only the fields needed for the test:
 
 If these are unknown, run passive checks only and mark active testing as blocked.
 
+## When To Run `run-safe-baseline.ps1`
+
+Run it, not just reference it, at the start of step 1 below, every time this skill is invoked for a task that
+touches new or previously-unreviewed source (a new service, a new app, a change that was never carried through a
+security pass before) — not only when a dedicated "security review" is explicitly requested. It is passive,
+read-only, and cheap, so there is no scope reason to skip it. Concretely:
+
+```powershell
+./scripts/run-safe-baseline.ps1 -Root <repo-or-service-root>
+```
+
+Record its `SecretMatches`, `DockerRiskMatches`, and the artifact paths in the evidence log even when all three
+are zero — a zero count IS the evidence that this pass ran and found nothing, which is different from the pass
+never having run at all. A review that skips this and goes straight to manual/targeted checks cannot later claim
+"no secrets found" as a blanket statement, only "no secrets found in the specific files manually inspected."
+This script is a heuristic first pass, not a full secret-scanning tool — a clean run narrows risk, it does not
+close the "secrets" line item outright.
+
 ## Safe Execution Order
 
-1. Passive repository review: secrets patterns, auth/permission code, tenant filters, logging, config, Dockerfiles,
-   compose files, CI definitions, dependency manifests.
+1. Passive repository review: run `run-safe-baseline.ps1` (see above) plus manual review of auth/permission code,
+   tenant filters, logging, config, Dockerfiles, compose files, CI definitions, dependency manifests.
 2. Build and analyzer checks: compiler warnings, linters, unit/security tests, package audit.
 3. Dependency and supply-chain review: outdated/vulnerable packages, unsigned artifacts, unpinned images, risky scripts.
 4. Container and runtime review: exposed ports, Docker socket, root user, privileged mode, secrets in image layers,

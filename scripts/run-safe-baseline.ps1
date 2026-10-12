@@ -53,7 +53,19 @@ $secretPatterns = @(
     'api[_-]?key\s*[:=]\s*["''][^"'']{12,}',
     'secret\s*[:=]\s*["''][^"'']{12,}',
     'connectionstring\s*[:=]',
-    '-----BEGIN (RSA |EC |OPENSSH |PRIVATE )?PRIVATE KEY-----'
+    '-----BEGIN (RSA |EC |OPENSSH |PRIVATE )?PRIVATE KEY-----',
+    # A real secret tracked in this project's own history (a live reCAPTCHA key, 2026) sat behind a
+    # JSON key named "...SecretKey" and was missed by the bare 'secret[:=]' pattern above, because
+    # "Secret" there is a substring of the KEY NAME, not immediately followed by ':'. This pattern
+    # catches that shape: any key ending in Secret/Key/Token/Password with a real-looking value
+    # (quoted, 12+ chars, not empty and not a ${...}/%...% placeholder).
+    # No \s allowed in the value - excludes i18n label text like "apiKey": "مفتاح API مخصص..."
+    '"[A-Za-z0-9_]*(Secret|ApiKey|Token|Password)[A-Za-z0-9_]*"\s*:\s*"(?!\s*$|\$\{|%)[^"\s]{12,}"',
+    # Cloud/provider key shapes with a recognizable, low-false-positive prefix.
+    'AKIA[0-9A-Z]{16}',
+    'AIza[0-9A-Za-z_\-]{35}',
+    'sk_live_[0-9a-zA-Z]{16,}',
+    'ghp_[0-9A-Za-z]{36}'
 )
 
 $textFiles = Get-ChildItem -Path $resolvedRoot -Recurse -Force -File -ErrorAction SilentlyContinue |
